@@ -1,0 +1,31 @@
+{
+  "name": "geyce-software",
+  "owner": {
+    "name": "Geyce Software"
+  },
+  "metadata": {
+    "description": "Marketplace oficial de plugins de Cowork de Geyce Software. Acceso a las aplicaciones de Geyce (jConta, jNomina, jGestion...) y herramientas relacionadas.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "geyce",
+      "source": "./plugins/geyce",
+      "description": "Accede a la información de las aplicaciones de Geyce: jConta, jNomina, jGestion...",
+      "version": "0.1.0",
+      "author": {
+        "name": "Geyce Software"
+      },
+      "keywords": [
+        "geyce",
+        "contabilidad",
+        "nominas",
+        "jconta",
+        "jnomina",
+        "jgestion",
+        "espana",
+        "fiscal"
+      ]
+    }
+  ]
+}

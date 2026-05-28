@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "geyce": {
+      "type": "http",
+      "url": "https://contaasp-api.azurewebsites.net/mcp-remoto"
+    }
+  }
+}
