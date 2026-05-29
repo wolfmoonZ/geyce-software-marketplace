@@ -74,6 +74,7 @@ ctasp{year} (por ejercicio)
 
 EMPRESA
  empcodigo ─────────────────────────────────────────────┐
+ empnif ─────────> easp.NIFES.danifcif                   |
                                                          |
 ASIENTOS (nucleo contable)                               |
  asiempresa ────────────────────────────────────────────>|
@@ -204,11 +205,14 @@ Saldos mensuales pre-calculados por cuenta. **Puede estar vacia** - algunos info
 | Campo | Descripcion |
 |-------|-------------|
 | `empcodigo` | Codigo de empresa (PK) |
+| `empnif` | NIF/CIF de la empresa. FK a `easp.NIFES.danifcif`. Se usa para obtener el nombre/razon social |
 | `empestructura` | Codigo de estructura del balance (NIF, NIIF, etc.) |
 | `empivamensual` | Flag IVA mensual (`'S'`/`'N'`). Afecta calculo periodo fiscal |
 | `empgranemp` | Flag gran empresa. Afecta calculo periodo fiscal |
 | `empexporta` | Flag exportadora. Afecta calculo periodo fiscal |
 | `empprogral` | Porcentaje prorrata general (0-100). Para calculo cuota deducible |
+
+**Importante:** la tabla `EMPRESA` **no contiene el nombre/razon social** de la empresa. Para obtenerlo hay que cruzar `empnif` con `[easp].[dbo].[NIFES].danifcif` y componer la razon social desde `datapell1 + datapell2 + datnombre` (ver patron "Obtener nombre/razon social de una empresa" mas abajo).
 
 **Calculo periodo fiscal:** Si `empivamensual='S'` OR `empgranemp='S'` OR `empexporta='S'` -> periodo mensual ("01"-"12"), sino -> trimestral ("1T"-"4T")
 
@@ -675,6 +679,26 @@ Tabla global (sin filtro de empresa/ejercicio).
 ---
 
 ## Patrones de Consulta Comunes
+
+### Obtener nombre/razon social de una empresa
+
+La tabla `EMPRESA` (en `ctasp{year}`) **no contiene el nombre**. Hay que cruzar `empnif` con `easp.NIFES`:
+
+```sql
+SELECT
+    emp.empcodigo,
+    emp.empnif,
+    LTRIM(RTRIM(
+        ISNULL(RTRIM(nif.datapell1), '') + ' ' +
+        ISNULL(RTRIM(nif.datapell2), '') + ' ' +
+        ISNULL(RTRIM(nif.datnombre), '')
+    )) AS razon_social
+FROM EMPRESA emp
+LEFT JOIN [easp].[dbo].[NIFES] nif ON nif.danifcif = emp.empnif
+WHERE emp.empcodigo = :empresa
+```
+
+Para personas juridicas la razon social suele venir en `datapell1`; para personas fisicas se combinan apellidos y nombre.
 
 ### Calculo de saldos desde ASIENTOS
 
