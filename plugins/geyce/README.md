@@ -6,7 +6,7 @@ Accede a la información de las aplicaciones de Geyce (jConta, jNomina, jGestion
 
 | Componente | Nombre | Descripción |
 |------------|--------|-------------|
-| Skill | `geyce-sql` | Conocimiento experto sobre el modelo de datos de ContaASP (jConta) y jNomina. Cubre saldos, asientos, extractos, facturas, libros de IVA, balances, P&G, terceros, retenciones IRPF, modelos fiscales (111, 115, 123, 347, 349), cobros/pagos, inmovilizado, amortizaciones, nóminas, resumen de costes laborales, devengos, deducciones, costes empresa, cotizaciones SS, bonificaciones, FOGASA, formación profesional y conceptos retributivos. |
+| Skill | `geyce-sql` | Conocimiento experto sobre el modelo de datos de ContaASP (jConta), jNomina y jGestion. Cubre saldos, asientos, extractos, facturas, libros de IVA, balances, P&G, terceros, retenciones IRPF, modelos fiscales (111, 115, 123, 347, 349), cobros/pagos, inmovilizado, amortizaciones, nóminas, resumen de costes laborales, devengos, deducciones, costes empresa, cotizaciones SS, bonificaciones, FOGASA, formación profesional, conceptos retributivos y facturación de despachos (facturas/albaranes, clientes, expedientes, colaboradores y comisiones). |
 | MCP Server | `geyce` | Conector HTTP remoto contra `https://contaasp-api.azurewebsites.net/mcp-remoto`. Expone herramientas para listar bases de datos y tablas, describir estructuras, obtener relaciones y muestras, y ejecutar consultas SELECT contra las BBDD de Geyce. |
 
 ## Requisitos
@@ -37,14 +37,16 @@ Cuando falten datos imprescindibles (empresa, ejercicio, periodo) Claude te los 
 
 - **jConta (ContaASP)** — contabilidad: asientos, IVA, balances, modelos fiscales, terceros, inmovilizado, amortizaciones, cobros/pagos.
 - **jNomina (laboral)** — nóminas: cálculos, devengos, deducciones, costes empresa, cotizaciones SS, FOGASA, formación, IRPF de nómina, finiquitos y atrasos.
+- **jGestion (jExpe)** — gestión de despachos: facturas, albaranes y facturas calculadas, clientes y colaboradores, expedientes, comisiones, honorarios, suplidos, estado VeriFactu y entidad de cobro.
 - **Maestros compartidos (easp)** — datos fiscales y de dirección de terceros (NIFES), inmovilizado, formas de pago y catálogos comunes.
 
 ## Detalle técnico
 
-La skill incluye dos referencias detalladas en `skills/geyce-sql/references/` que se cargan bajo demanda:
+La skill incluye tres referencias detalladas en `skills/geyce-sql/references/` que se cargan bajo demanda:
 
 - `jconta.md` — modelo de datos completo de ContaASP y patrones de consulta contables.
 - `laboral.md` — modelo de datos de jNomina y patrones de consulta de nómina.
+- `jgestion.md` — modelo de datos de jGestion (jExpe) y patrones de consulta de facturación de despachos.
 
 El conector expone las siguientes herramientas MCP: `execute_select`, `list_databases`, `list_tables`, `describe_table`, `get_sample_data`, `search_columns`, `get_relationships` y `whoami`. En la mayoría de los casos basta con `execute_select`.
 

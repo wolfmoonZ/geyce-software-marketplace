@@ -1,35 +1,38 @@
 ---
 name: geyce-sql
 description: |
-  Consulta las BBDD de Geyce vía el conector Geyce: contabilidad (ContaASP / jconta)
-  y nóminas (jNomina / laboral). Traduce peticiones sobre contabilidad española y gestión
-  laboral en consultas SQL eficientes contra SQL Server.
-  USAR SIEMPRE que el usuario pida datos contables, fiscales o laborales: saldos, asientos,
-  extractos, facturas, libros de IVA, balances, P&G, terceros, retenciones IRPF, modelos
-  fiscales (111, 115, 123, 347, 349), cobros/pagos, inmovilizado, amortizaciones, nóminas,
-  resumen de costes laborales, devengos, deducciones, costes empresa, cotizaciones SS,
-  bonificaciones, FOGASA, formación profesional, conceptos retributivos.
-  También cuando se mencionen tablas o campos de ContaASP/jNomina, o se pida "consultar
+  Consulta las BBDD de Geyce vía el conector geyce: contabilidad (ContaASP / jconta),
+  nóminas (jNomina / laboral) y gestión de despachos (jGestion / jExpe). Traduce peticiones
+  sobre contabilidad española, gestión laboral y facturación de despachos en consultas SQL
+  eficientes contra SQL Server.
+  USAR SIEMPRE que el usuario pida datos contables, fiscales, laborales o de facturación de
+  despacho: saldos, asientos, extractos, facturas, libros de IVA, balances, P&G, terceros,
+  retenciones IRPF, modelos fiscales (111, 115, 123, 347, 349), cobros/pagos, inmovilizado,
+  amortizaciones, nóminas, resumen de costes laborales, devengos, deducciones, costes empresa,
+  cotizaciones SS, bonificaciones, FOGASA, formación profesional, conceptos retributivos,
+  listado de facturas/albaranes del despacho, clientes, expedientes, colaboradores, comisiones.
+  También cuando se mencionen tablas o campos de ContaASP/jNomina/jGestion, o se pida "consultar
   la contabilidad", "ver asientos", "buscar facturas", "ver nóminas", "calcular costes
-  de personal", "resumen de costes" o variantes.
+  de personal", "resumen de costes", "listado de facturas del despacho" o variantes.
 ---
 
 # Skill: geyce-sql — Consultas a las Bases de Datos de Geyce
 
 Esta skill te permite responder a peticiones del usuario sobre datos contables, fiscales y
 laborales, construyendo consultas SQL contra las bases de datos de Geyce a través del
-conector `geyce`. Cubre dos aplicativos:
+conector `geyce`. Cubre tres aplicativos:
 
 - **jconta (ContaASP)** — contabilidad: asientos, IVA, balances, modelos fiscales, terceros, inmovilizado.
 - **laboral (jNomina)** — nóminas: cálculos, devengos, deducciones, costes empresa, cotizaciones SS.
+- **jGestion (jExpe)** — gestión de despachos: facturas, albaranes, clientes, expedientes, colaboradores, comisiones.
 
 ## Antes de consultar: identifica aplicativo, empresa y periodo
 
 Toda consulta necesita estos datos:
 
-- **Aplicativo**: jconta o laboral. Determina la base de datos (ver siguiente sección).
-- **Empresa** (`empcodigo`): identifica la entidad. Existe tanto en jconta como en laboral.
-- **Ejercicio**: año. En **jconta** determina la BD (`ctasp{year}`); en **laboral** es solo un campo (`hispejercicio`).
+- **Aplicativo**: jconta, laboral o jGestion. Determina la base de datos (ver siguiente sección).
+- **Empresa** (`empcodigo`) o **Despacho/Asesor** (`frasesor`): identifica la entidad. En jconta y laboral es la empresa; en **jGestion** es el despacho/asesor.
+- **Ejercicio**: año. En **jconta** determina la BD (`ctasp{year}`); en **laboral** es solo un campo (`hispejercicio`); en **jGestion** no existe BD por año: se filtra por fecha (`frfechafactura`).
 - **Periodo (solo laboral)**: meses 1-12 de inicio y fin.
 
 Si el usuario no los proporciona, pregunta antes de consultar. Si ya los ha mencionado en la conversación, reutilízalos sin volver a preguntar.
@@ -46,16 +49,21 @@ Para listar empresas en laboral:
 SELECT empcodigo, empnombre, empnif FROM [laboral].[dbo].EMPRESA
 ```
 
+En jGestion no hay tabla de empresas: el discriminador es el despacho (`frasesor`). Si el usuario no lo indica, pregúntalo (es obligatorio en toda consulta).
+
 ## Selección de aplicativo
 
 Antes de construir una consulta, identifica a qué aplicativo pertenecen los datos. Esto determina la BD a usar y la referencia a leer.
 
 | Pista en la pregunta del usuario | Aplicativo | Referencia |
 |---|---|---|
-| Saldos, asientos, IVA, balances, P&G, modelos fiscales (111, 115, 123, 347, 349), facturas, terceros contables, inmovilizado, amortizaciones, cobros/pagos | **jconta** | `references/jconta.md` |
+| Saldos, asientos, IVA, balances, P&G, modelos fiscales (111, 115, 123, 347, 349), facturas (libro de IVA / contables), terceros contables, inmovilizado, amortizaciones, cobros/pagos | **jconta** | `references/jconta.md` |
 | Nóminas, trabajadores, devengos, deducciones, costes empresa, cotizaciones SS, IRPF de nómina, finiquitos, atrasos, conceptos salariales/retributivos, centros y departamentos laborales, contratos, FOGASA, formación profesional, resumen de costes laborales | **laboral** | `references/laboral.md` |
+| Listado de facturas/albaranes del despacho, facturas calculadas, clientes del despacho, expedientes, colaboradores, comisiones, honorarios, suplidos, responsables/comerciales/representantes, estado VeriFactu, entidad de cobro/recibos | **jGestion** | `references/jgestion.md` |
 
-Si la pregunta cruza ambos (p.ej. "qué se ha contabilizado de la nómina de marzo"), normalmente se resuelve consultando jconta — las cuentas 640/642/4760 reflejan lo de nómina. Solo entras en laboral cuando piden el detalle por trabajador, concepto retributivo o cotización.
+Si la pregunta cruza jconta y laboral (p.ej. "qué se ha contabilizado de la nómina de marzo"), normalmente se resuelve consultando jconta — las cuentas 640/642/4760 reflejan lo de nómina. Solo entras en laboral cuando piden el detalle por trabajador, concepto retributivo o cotización.
+
+⚠️ **No confundir las "facturas" de jconta con las de jGestion.** En **jconta** las facturas son las del **libro de IVA** (`IVACABECERA`/`IVALINEAS`, BD `ctasp{year}`), orientadas a la declaración fiscal. En **jGestion** las facturas son los **documentos de facturación del despacho** (`factura`, BD `easp`), con honorarios, suplidos, expedientes, colaboradores y estado VeriFactu. Si el usuario habla de "facturas que he emitido a mis clientes", "honorarios", "expedientes" o "comisiones de colaborador" → jGestion. Si habla de "IVA repercutido/soportado", "libro de facturas emitidas/recibidas" o "modelo 303/347" → jconta. Ante la duda, pregunta.
 
 ## Arquitectura de bases de datos
 
@@ -65,12 +73,15 @@ Las BDs de Geyce siguen distintos patrones según el aplicativo:
 |---|---|---|
 | jconta (ContaASP) | `ctasp{year}` (ej: `ctasp2024`, `ctasp2025`) | **Sí**, una BD por ejercicio fiscal |
 | laboral (jNomina) | `laboral` | **No**, BD única; el ejercicio es un campo |
+| jGestion (jExpe) | `easp` (tablas `factura`, `clientes`, `rebuts`, `expe`, ...) | **No**, BD única; el año se filtra por fecha |
 | Maestra compartida | `easp` | No (terceros NIFES, provincias, dominios, formas de pago, inmovilizado) |
 
 Cuando uses `mcp__geyce__execute_select`, pasa el parámetro `database` correspondiente:
 - Tablas contables del ejercicio: `database: "ctasp{year}"`
 - Tablas de nómina: `database: "laboral"`
-- Tablas maestras compartidas: `database: "easp"`
+- Tablas de jGestion y maestras compartidas: `database: "easp"`
+
+> **jGestion vive en `easp`**, la misma BD que los maestros compartidos. No existe `easp{year}`: todas las facturas de todos los ejercicios están en la misma tabla `factura` y se filtran por `frfechafactura`.
 
 Para consultas cross-database (p.ej. nómina + datos personales en NIFES), haz consultas separadas y combina resultados en tu respuesta.
 
@@ -80,6 +91,7 @@ Consulta el fichero del aplicativo correspondiente para la documentación comple
 
 - [`references/jconta.md`](references/jconta.md) — contabilidad ContaASP
 - [`references/laboral.md`](references/laboral.md) — nóminas jNomina
+- [`references/jgestion.md`](references/jgestion.md) — gestión de despachos jGestion (jExpe)
 
 A continuación un resumen de las tablas principales y reglas más importantes de cada aplicativo, para tener a mano lo más usado sin abrir las referencias.
 
@@ -118,6 +130,17 @@ A continuación un resumen de las tablas principales y reglas más importantes d
 | **FORMACOBPAG** | Formas de cobro/pago |
 | **PCINMOV** | Bienes de inversión (inmovilizado). Fichas de activo y bienes de inversión |
 | **PCMORANUAL** | Amortizaciones anuales por bien. Tipo `'C'` = contable, `'F'` = fiscal. Soporta listados de amortizaciones y correcciones fiscales |
+
+### Tablas principales — jGestion (easp)
+
+| Tabla | Función |
+|-------|---------|
+| **factura** | Documentos de facturación del despacho (facturas, albaranes, facturas calculadas). Tabla central. Clave lógica (`frasesor`, `frserie`, `frfactura`) |
+| **clientes** | Maestro de clientes/colaboradores del despacho. Clave lógica (`clasesor`, `clcodigo`, `clcolectivo`); colectivo `1`=cliente, `3`=colaborador |
+| **expe** | Expedientes (casos/dossieres) asociados a las facturas. Clave (`exasesor`, `exexpediente`) |
+| **rebuts** | Recibos/cobros de las facturas. Aporta la entidad de cobro (`rebent`); solo se une al agrupar por entidad |
+
+Detalle completo de campos, relaciones, filtros y patrones en `references/jgestion.md`.
 
 ### Tablas principales — laboral
 
@@ -266,7 +289,7 @@ Si el periodo cruza años, usa la condición de la regla 4 de `references/labora
 
 ### 6. Exoneración ER y EXCL65 cambian el coste real
 
-Para coste real exacto hay que excluir bonificaciones de filas con `HISITIPHISI='ER'` (LEFT JOIN a subquery DISTINCT de HISINCIDEN) y separar bases/bonif según `HISPEXCL65='S'`. Si el usuario solo quiere "totales aproximados", se puede ignorar; si pide "el resumen oficial", redirigirlo al endpoint `/resumen-costes`.
+Para coste real exacto hay que excluir bonificaciones de filas con `HISITIPHISI='ER'` (LEFT JOIN a subquery DISTINCT de HISINCIDEN) y separar bases/bonif según `HISPEXCL65='S'`. Si el usuario solo quiere "totales aproximados", se puede ignorar; si pide "el resumen oficial", advierte de que el cálculo exacto requiere estos ajustes (ER, MEI, contingencias excluidas) y no es trivial de reproducir en SQL puro.
 
 ### 7. ⚠️ HISDEDUC mezcla deducciones reales con conceptos agregados — NO sumes `hisdcuota` a saco
 
@@ -283,6 +306,42 @@ Códigos de control conocidos: `90400`, `90410`, `90430-90439`, `90441`, `90445`
 ### 8. Cross-database para nombre del trabajador
 
 `TRABAJADOR.tranif` se cruza con `[easp].[dbo].NIFES.danifcif` para obtener nombre y apellidos por separado.
+
+## Reglas críticas para construir consultas — jGestion
+
+Detalle completo en `references/jgestion.md`. Lo imprescindible:
+
+### 1. Filtro obligatorio por despacho (asesor)
+
+Toda consulta filtra por `frasesor` (= `clasesor` = `exasesor` = `rebasesor`). Es el discriminador multi-inquilino del despacho; omitirlo mezcla datos de despachos distintos. Si el usuario no da el despacho, pregúntalo.
+
+### 2. Tipo de documento (`frentidad`)
+
+`frentidad` distingue: `'1'`=Factura, `'2'`=Albarán, `'9'`=Factura calculada. Si el usuario no especifica, asume facturas (`'1'`).
+
+### 3. No hay BD por año: se filtra por fecha
+
+No existe `easp{year}`. El ejercicio se filtra por `frfechafactura` (rango de fechas), no por nombre de BD. `database: "easp"` siempre.
+
+### 4. Estado de cobro derivado del saldo
+
+`frsaldopdte = 0` → cobrada; `<> 0` → pendiente. No hay un campo booleano "cobrada".
+
+### 5. JOIN cliente por clave triple
+
+`factura` se une a `clientes` por (`frasesor`=`clasesor`, `frcliente`=`clcodigo`, `frcolectivo`=`clcolectivo`). Los filtros avanzados (responsable/comercial/representante/formato) se hacen con subqueries a `clientes` forzando `clcolectivo = 1` y a `expe`.
+
+### 6. Comisión del colaborador = honorarios × cldescuento / 100
+
+No está almacenada: se calcula con el `cldescuento` del colaborador (`clientes` con `clcolectivo = 3` y `clcodigo = frcolaborador`).
+
+### 7. DISTINCT al agrupar por entidad de cobro
+
+Unir `rebuts` (para `rebent`) puede multiplicar filas (varios recibos por factura); por eso al agrupar por entidad se usa `SELECT DISTINCT`.
+
+### 8. Importes en float, serie con espacios
+
+Los importes son `float` (cuidado con `= 0.0`); `frserie` puede traer espacios a la derecha (usa `RTRIM`) y serie blanca/nula = "sin serie".
 
 ## Terminología contable → Cuentas del PGC
 
@@ -517,7 +576,7 @@ WHERE t.tracodiemp = :empresa
 ORDER BY t.tracodigo
 ```
 
-> El `coste_real_empresa` aquí es una aproximación. Si el usuario pide el cálculo "oficial" (con ajustes ER, MEI, contingencias excluidas), redirígelo al endpoint `POST /api/v1/resumen-costes` en lugar de reescribirlo a SQL puro.
+> El `coste_real_empresa` aquí es una aproximación. Si el usuario pide el cálculo "oficial" (con ajustes ER, MEI, contingencias excluidas), advierte de que esos ajustes lo hacen complejo de reproducir fielmente en SQL puro y que esta cifra es orientativa.
 
 ### Top conceptos retributivos del periodo
 
@@ -547,7 +606,59 @@ FROM [easp].[dbo].NIFES n
 WHERE n.danifcif = :nif
 ```
 
-## Herramientas disponibles del conector Geyce
+## Patrones de consulta frecuentes — jGestion
+
+Detalle completo y variantes en `references/jgestion.md`. Aquí los más usados:
+
+### Listado de facturas del despacho en un periodo
+
+```sql
+-- En base de datos easp
+SELECT factura.frserie, factura.frfactura, factura.frfechafactura,
+       factura.frcliente, factura.frnombre,
+       factura.frbaseimponible, factura.friva, factura.frliquido, factura.frsaldopdte
+FROM factura
+LEFT JOIN clientes
+       ON factura.frasesor    = clientes.clasesor
+      AND factura.frcliente   = clientes.clcodigo
+      AND factura.frcolectivo = clientes.clcolectivo
+WHERE factura.frasesor = :asesor
+  AND factura.frentidad = '1'                       -- '1' facturas, '2' albaranes, '9' calculadas
+  AND factura.frfechafactura BETWEEN :desde AND :hasta
+ORDER BY factura.frserie, factura.frfactura
+```
+
+### Facturas pendientes de cobro
+
+```sql
+-- En base de datos easp
+SELECT frserie, frfactura, frfechafactura, frnombre, frliquido, frsaldopdte, frvencimiento
+FROM factura
+WHERE frasesor = :asesor
+  AND frentidad = '1'
+  AND frsaldopdte <> 0.0          -- 0 = cobrada
+ORDER BY frvencimiento
+```
+
+### Totales de facturación por cliente
+
+```sql
+-- En base de datos easp
+SELECT frcliente, frnombre,
+       COUNT(*) AS num_facturas,
+       SUM(frbaseimponible) AS total_base,
+       SUM(friva) AS total_iva,
+       SUM(frliquido) AS total_facturado,
+       SUM(frsaldopdte) AS total_pendiente
+FROM factura
+WHERE frasesor = :asesor
+  AND frentidad = '1'
+  AND frfechafactura BETWEEN :desde AND :hasta
+GROUP BY frcliente, frnombre
+ORDER BY total_facturado DESC
+```
+
+## Herramientas disponibles del conector geyce
 
 Usa estas herramientas MCP según lo que necesites:
 
@@ -568,15 +679,15 @@ cuando el usuario pregunta algo que no está cubierto en esta documentación o n
 
 Cuando el usuario pide información:
 
-1. **Identifica el aplicativo**: jconta (contabilidad) o laboral (nóminas). Ver tabla en "Selección de aplicativo".
-2. **Identifica qué datos necesita**: ¿saldos?, ¿facturas?, ¿nóminas de un trabajador?, ¿coste empresa?
-3. **Verifica que tienes empresa y, si aplica, ejercicio/periodo**: si no, pregunta. En jconta el ejercicio determina la BD; en laboral es solo un campo.
-4. **Elige las tablas correctas**: usa los resúmenes de arriba; para casos complejos abre `references/jconta.md` o `references/laboral.md`.
+1. **Identifica el aplicativo**: jconta (contabilidad), laboral (nóminas) o jGestion (facturación de despacho). Ver tabla en "Selección de aplicativo". Recuerda: "facturas" de IVA/contables → jconta; "facturas del despacho" (honorarios, expedientes, colaboradores) → jGestion.
+2. **Identifica qué datos necesita**: ¿saldos?, ¿facturas de IVA?, ¿nóminas de un trabajador?, ¿coste empresa?, ¿listado de facturas del despacho?
+3. **Verifica que tienes empresa/despacho y, si aplica, ejercicio/periodo**: si no, pregunta. En jconta el ejercicio determina la BD; en laboral es un campo; en jGestion se filtra por fecha y el discriminador es el despacho (`frasesor`).
+4. **Elige las tablas correctas**: usa los resúmenes de arriba; para casos complejos abre `references/jconta.md`, `references/laboral.md` o `references/jgestion.md`.
 5. **Construye la consulta** aplicando las reglas críticas del aplicativo correspondiente.
 6. **Usa la BD correcta**:
    - jconta → `ctasp{year}`
    - laboral → `laboral`
-   - maestros compartidos → `easp`
+   - jGestion y maestros compartidos → `easp`
 7. **Ejecuta con `execute_select`** pasando el parámetro `database`.
 8. **Presenta los resultados** de forma clara al usuario.
 
